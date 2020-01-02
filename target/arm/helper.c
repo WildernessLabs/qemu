@@ -10000,7 +10000,7 @@ static bool pmsav7_use_background_region(ARMCPU *cpu,
     CPUARMState *env = &cpu->env;
 
     if (is_user) {
-        return false;
+        return true; //false;
     }
 
     if (arm_feature(env, ARM_FEATURE_M)) {
@@ -10073,8 +10073,8 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
             if (base & rmask) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "DRBAR[%d]: 0x%" PRIx32 " misaligned "
-                              "to DRSR region size, mask = 0x%" PRIx32 "\n",
-                              n, base, rmask);
+                              "to DRSR region size, mask = 0x%" PRIx32 " addr = 0x%" PRIx32 "\n",
+                              n, base, rmask, address);
                 continue;
             }
 
