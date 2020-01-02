@@ -10000,7 +10000,7 @@ static bool pmsav7_use_background_region(ARMCPU *cpu,
     CPUARMState *env = &cpu->env;
 
     if (is_user) {
-        return true; //false;
+        return false;
     }
 
     if (arm_feature(env, ARM_FEATURE_M)) {
