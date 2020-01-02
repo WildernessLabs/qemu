@@ -101,6 +101,10 @@ config NETDUINO2
     bool
     select STM32F205_SOC
 
+config MEADOW
+    bool
+    select STM32F7_SOC
+
 config NSERIES
     bool
     select OMAP
@@ -303,6 +307,16 @@ config STM32F205_SOC
     select OR_IRQ
     select STM32F2XX_TIMER
     select STM32F2XX_USART
+    select STM32F2XX_SYSCFG
+    select STM32F2XX_ADC
+    select STM32F2XX_SPI
+
+config STM32F7_SOC
+    bool
+    select ARM_V7M
+    select OR_IRQ
+    select STM32F2XX_TIMER
+    select STM32F7_USART
     select STM32F2XX_SYSCFG
     select STM32F2XX_ADC
     select STM32F2XX_SPI
