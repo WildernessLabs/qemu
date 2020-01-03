@@ -33,10 +33,28 @@
 static void meadow_init(MachineState *machine)
 {
     DeviceState *dev;
+    DeviceState *spi_flash;
+    qemu_irq cs_line;
+    SSIBus *spi_bus;
+    STM32F7State *soc;
+    DriveInfo *dinfo = drive_get_next(IF_MTD);
 
     dev = qdev_create(NULL, TYPE_STM32F7_SOC);
     qdev_prop_set_string(dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m7"));
     object_property_set_bool(OBJECT(dev), true, "realized", &error_fatal);
+
+    soc = STM32F7_SOC(dev);
+
+    /* Attach SPI flash to QSPI0 controller */
+    spi_bus = (SSIBus *)qdev_get_child_bus(dev, "qspi0");
+    spi_flash = ssi_create_slave_no_init(spi_bus, "s25fl512s");
+    if (dinfo) {
+        qdev_prop_set_drive(spi_flash, "drive", blk_by_legacy_dinfo(dinfo),
+                                    &error_fatal);
+    }
+    qdev_init_nofail(spi_flash);
+    cs_line = qdev_get_gpio_in_named(spi_flash, SSI_GPIO_CS, 0);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&soc->qspi), 0, cs_line);
 
     armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
                        FLASH_SIZE);

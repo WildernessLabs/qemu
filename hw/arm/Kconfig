@@ -320,6 +320,7 @@ config STM32F7_SOC
     select STM32F2XX_SYSCFG
     select STM32F2XX_ADC
     select STM32F2XX_SPI
+    select STM32F7_QSPI
 
 config XLNX_ZYNQMP_ARM
     bool

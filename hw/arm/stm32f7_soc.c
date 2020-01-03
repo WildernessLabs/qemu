@@ -40,11 +40,13 @@ static const uint32_t adc_addr[STM_NUM_ADCS] = { 0x40012000, 0x40012100,
     0x40012200 };
 static const uint32_t spi_addr[STM_NUM_SPIS] = { 0x40013000, 0x40003800,
     0x40003C00, 0x40013400, 0x40015000, 0x40015400 };
+static const uint32_t qspi_addr = 0xa0001000;
 
 static const int timer_irq[STM_NUM_TIMERS] = {28, 29, 30, 50};
 static const int usart_irq[STM_NUM_USARTS] = {37, 38, 39, 52, 53, 71};
 #define ADC_IRQ 18
 static const int spi_irq[STM_NUM_SPIS] = {35, 36, 51, 84, 85, 86};
+static const int qspi_irq = 92;
 
 static void stm32f7_soc_initfn(Object *obj)
 {
@@ -78,6 +80,8 @@ static void stm32f7_soc_initfn(Object *obj)
         sysbus_init_child_obj(obj, "spi[*]", &s->spi[i], sizeof(s->spi[i]),
                               TYPE_STM32F2XX_SPI);
     }
+
+    sysbus_init_child_obj(obj, "qspi[*]", &s->qspi, sizeof(s->qspi), TYPE_STM32F7_QSPI);
 }
 
 static void stm32f7_soc_realize(DeviceState *dev_soc, Error **errp)
@@ -185,6 +189,8 @@ static void stm32f7_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* SPI 1 and 2 */
     for (i = 0; i < STM_NUM_SPIS; i++) {
+        gchar *bus_name;
+
         dev = DEVICE(&(s->spi[i]));
         object_property_set_bool(OBJECT(&s->spi[i]), true, "realized", &err);
         if (err != NULL) {
@@ -194,7 +200,29 @@ static void stm32f7_soc_realize(DeviceState *dev_soc, Error **errp)
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(busdev, 0, spi_addr[i]);
         sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, spi_irq[i]));
+
+        /* Alias controller SPI bus to the SoC itself */
+        bus_name = g_strdup_printf("spi%d", i);
+        object_property_add_alias(OBJECT(s), bus_name,
+                                  OBJECT(&s->spi[i]), "spi",
+                                  &error_abort);
     }
+
+
+    dev = DEVICE(&(s->spi[i]));
+    object_property_set_bool(OBJECT(&s->qspi), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(busdev, 0, qspi_addr);
+    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, qspi_irq));
+
+    /* Alias controller SPI bus to the SoC itself */
+    object_property_add_alias(OBJECT(s), "qspi0",
+                              OBJECT(&s->spi[i]), "qspi",
+                              &error_abort);
 }
 
 static Property stm32f7_soc_properties[] = {

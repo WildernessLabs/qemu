@@ -31,6 +31,7 @@
 #include "hw/adc/stm32f2xx_adc.h"
 #include "hw/or-irq.h"
 #include "hw/ssi/stm32f2xx_spi.h"
+#include "hw/ssi/stm32f7_qspi.h"
 #include "hw/arm/armv7m.h"
 
 #define TYPE_STM32F7_SOC "stm32f7-soc"
@@ -61,6 +62,7 @@ typedef struct STM32F7State {
     STM32F2XXTimerState timer[STM_NUM_TIMERS];
     STM32F2XXADCState adc[STM_NUM_ADCS];
     STM32F2XXSPIState spi[STM_NUM_SPIS];
+    STM32F7QSPIState qspi;
 
     qemu_or_irq *adc_irqs;
 } STM32F7State;
