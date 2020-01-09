@@ -1054,8 +1054,13 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         break;
 
     case RDCR:
-        s->data[0] = s->volatile_cfg & 0xFF;
-        s->data[0] |= (!!s->four_bytes_address_mode) << 5;
+        if (get_man(s) == MAN_SPANSION) {
+            s->data[0] = s->spansion_cr2nv;
+            s->data[0] |= (!!s->four_bytes_address_mode);
+        } else {
+            s->data[0] = s->volatile_cfg & 0xFF;
+            s->data[0] |= (!!s->four_bytes_address_mode) << 5;
+        }
         s->pos = 0;
         s->len = 1;
         s->state = STATE_READING_DATA;
