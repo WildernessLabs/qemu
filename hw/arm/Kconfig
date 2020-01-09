@@ -104,6 +104,7 @@ config NETDUINO2
 config MEADOW
     bool
     select STM32F7_SOC
+    select SSI_M25P80
 
 config NSERIES
     bool
