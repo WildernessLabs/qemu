@@ -81,7 +81,7 @@ static void stm32f7_soc_initfn(Object *obj)
                               TYPE_STM32F2XX_SPI);
     }
 
-    sysbus_init_child_obj(obj, "qspi[*]", &s->qspi, sizeof(s->qspi), TYPE_STM32F7_QSPI);
+    sysbus_init_child_obj(obj, "qspi", &s->qspi, sizeof(s->qspi), TYPE_STM32F7_QSPI);
 }
 
 static void stm32f7_soc_realize(DeviceState *dev_soc, Error **errp)
@@ -204,24 +204,24 @@ static void stm32f7_soc_realize(DeviceState *dev_soc, Error **errp)
         /* Alias controller SPI bus to the SoC itself */
         bus_name = g_strdup_printf("spi%d", i);
         object_property_add_alias(OBJECT(s), bus_name,
-                                  OBJECT(&s->spi[i]), "spi",
+                                  OBJECT(&s->spi[i]), "ssi",
                                   &error_abort);
     }
 
-
-    dev = DEVICE(&(s->spi[i]));
     object_property_set_bool(OBJECT(&s->qspi), true, "realized", &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
     }
+
+    dev = DEVICE(&s->qspi);
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, qspi_addr);
     sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, qspi_irq));
 
-    /* Alias controller SPI bus to the SoC itself */
+    /* Alias controller QSPI bus to the SoC itself */
     object_property_add_alias(OBJECT(s), "qspi0",
-                              OBJECT(&s->spi[i]), "qspi",
+                              OBJECT(&s->qspi), "ssi",
                               &error_abort);
 }
 
