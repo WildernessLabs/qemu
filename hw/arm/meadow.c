@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "hw/arm/stm32f7_soc.h"
 #include "hw/arm/boot.h"
+#include "sysemu/sysemu.h"
 
 static void meadow_init(MachineState *machine)
 {
@@ -40,10 +41,17 @@ static void meadow_init(MachineState *machine)
     DriveInfo *dinfo;
 
     dev = qdev_create(NULL, TYPE_STM32F7_SOC);
-    qdev_prop_set_string(dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m7"));
-    object_property_set_bool(OBJECT(dev), true, "realized", &error_fatal);
-
     soc = STM32F7_SOC(dev);
+
+    qdev_prop_set_string(dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m7"));
+
+    /* Attach chardev 0 (console) to  USART1 */
+    qdev_prop_set_chr(DEVICE(&(soc->usart[0])), "chardev", serial_hd(0));
+
+    /* Attach chardev 1 (HCOM) to  UART4 */
+    qdev_prop_set_chr(DEVICE(&(soc->usart[3])), "chardev", serial_hd(1));
+
+    object_property_set_bool(OBJECT(dev), true, "realized", &error_fatal);
 
     /* Attach SPI flash to QSPI0 controller */
     spi_bus = (SSIBus *)qdev_get_child_bus(dev, "qspi0");
