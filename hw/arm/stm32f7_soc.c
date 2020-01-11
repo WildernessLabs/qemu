@@ -35,7 +35,7 @@
 static const uint32_t timer_addr[STM_NUM_TIMERS] = { 0x40000000, 0x40000400,
     0x40000800, 0x40000C00 };
 static const uint32_t usart_addr[STM_NUM_USARTS] = { 0x40011000, 0x40004400,
-    0x40004800, 0x40004C00, 0x40005000, 0x40011400 };
+    0x40004800, 0x40004C00, 0x40005000, 0x40011400, /*0x40007800, 0x40007c00*/ };
 static const uint32_t adc_addr[STM_NUM_ADCS] = { 0x40012000, 0x40012100,
     0x40012200 };
 static const uint32_t spi_addr[STM_NUM_SPIS] = { 0x40013000, 0x40003800,
