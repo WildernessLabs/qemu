@@ -53,6 +53,8 @@
  * modelling EEPROM with SPI flash command set
  */
 #define EEPROM 0x100
+/* newer devices use CR3 register for dummy cycles info */
+#define CR3_DUMMY_CYCLES 0x1000
 
 /* 16 MiB max in 3 byte address mode */
 #define MAX_3BYTES_SIZE 0x1000000
@@ -179,6 +181,8 @@ typedef struct FlashPartInfo {
 #define SPANSION_CONTINUOUS_READ_MODE_CMD_LEN 1
 #define WINBOND_CONTINUOUS_READ_MODE_CMD_LEN 1
 
+#define ENABLE_CONTINUOUS_READ_MODE 0
+
 static const FlashPartInfo known_devices[] = {
     /* Atmel -- some are (confusingly) marketed as "DataFlash" */
     { INFO("at25fs010",   0x1f6601,      0,  32 << 10,   4, ER_4K) },
@@ -259,7 +263,7 @@ static const FlashPartInfo known_devices[] = {
     { INFO("s25sl064p",   0x010216, 0x4d00,  64 << 10, 128, ER_4K) },
     { INFO("s25fl256s0",  0x010219, 0x4d00, 256 << 10, 128, 0) },
     { INFO("s25fl256s1",  0x010219, 0x4d01,  64 << 10, 512, 0) },
-    { INFO("s25fl256l",   0x016019, 0x4d01,  64 << 10, 512, 0) },
+    { INFO("s25fl256l",   0x016019, 0x4d01,  64 << 10, 512, ER_4K | CR3_DUMMY_CYCLES) },
     { INFO6("s25fl512s",  0x010220, 0x4d0080, 256 << 10, 256, 0) },
     { INFO6("s70fl01gs",  0x010221, 0x4d0080, 256 << 10, 512, 0) },
     { INFO("s25sl12800",  0x012018, 0x0300, 256 << 10,  64, 0) },
@@ -848,11 +852,16 @@ static void decode_fast_read_cmd(Flash *s)
         }
         break;
     case MAN_SPANSION:
-        s->needed_bytes += extract32(s->spansion_cr2v,
+    {
+        uint8_t cr_reg;
+        cr_reg = (s->pi->flags & CR3_DUMMY_CYCLES) ?
+            s->spansion_cr3v : s->spansion_cr2v;
+        s->needed_bytes += extract32(cr_reg,
                                     SPANSION_DUMMY_CLK_POS,
                                     SPANSION_DUMMY_CLK_LEN
                                     );
         break;
+    }
     default:
         break;
     }
@@ -870,12 +879,19 @@ static void decode_dio_read_cmd(Flash *s)
         s->needed_bytes += WINBOND_CONTINUOUS_READ_MODE_CMD_LEN;
         break;
     case MAN_SPANSION:
+    {
+#if ENABLE_CONTINUOUS_READ_MODE == 1
         s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
-        s->needed_bytes += extract32(s->spansion_cr2v,
+        uint8_t cr_reg;
+        cr_reg = (s->pi->flags & CR3_DUMMY_CYCLES) ?
+            s->spansion_cr3v : s->spansion_cr2v;
+        s->needed_bytes += extract32(cr_reg,
                                     SPANSION_DUMMY_CLK_POS,
                                     SPANSION_DUMMY_CLK_LEN
                                     );
+#endif
         break;
+    }
     case MAN_NUMONYX:
         s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
         break;
@@ -910,12 +926,19 @@ static void decode_qio_read_cmd(Flash *s)
         s->needed_bytes += 4;
         break;
     case MAN_SPANSION:
+    {
+#if ENABLE_CONTINUOUS_READ_MODE == 1
         s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
-        s->needed_bytes += extract32(s->spansion_cr2v,
+        uint8_t cr_reg;
+        cr_reg = (s->pi->flags & CR3_DUMMY_CYCLES) ?
+            s->spansion_cr3v : s->spansion_cr2v;
+        s->needed_bytes += extract32(cr_reg,
                                     SPANSION_DUMMY_CLK_POS,
                                     SPANSION_DUMMY_CLK_LEN
                                     );
+#endif
         break;
+    }
     case MAN_NUMONYX:
         s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
         break;
