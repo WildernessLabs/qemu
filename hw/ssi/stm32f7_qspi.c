@@ -41,7 +41,7 @@
 
 #define DB_PRINT(fmt, args...) DB_PRINT_L(1, fmt, ## args)
 
-#define FIFO_CAPACITY         32
+#define FIFO_CAPACITY         31
 
 /* QSPI register definitions *************************************************/
 
@@ -72,6 +72,10 @@
 
 #define QSPI_CCR_IMODE_NONE        (0)        /* No instruction */
 #define QSPI_CCR_ADMODE_NONE       (0)        /* No address */
+#define QSPI_CCR_ADSIZE_8          (0)        /* 8-bit address */
+#define QSPI_CCR_ADSIZE_16         (1)        /* 16-bit address */
+#define QSPI_CCR_ADSIZE_24         (2)        /* 24-bit address */
+#define QSPI_CCR_ADSIZE_32         (3)        /* 32-bit address */
 #define QSPI_CCR_ABMODE_NONE       (0)        /* No alternate bytes */
 #define QSPI_CCR_DMODE_NONE        (0)        /* No data */
 #define QSPI_CCR_FMODE_INDWR       (0)        /* Indirect write mode */
@@ -198,40 +202,46 @@ static void stm32f7_qspi_transfer_complete(STM32F7QSPIState *s)
     deassert_cs(s);
 }
 
-static void stm32f7_qspi_update_fifo(STM32F7QSPIState *s)
+static bool stm32f7_qspi_update_fifo(STM32F7QSPIState *s)
 {
     /* Check for FIFO threshold level */
     uint32_t fthres = (s->reg_cr & QSPI_CR_FTHRES_MASK) >> QSPI_CR_FTHRES_SHIFT;
     assert(fthres <= 32);
+
+    /* TODO */
+    /* FTF is also set if there is data in the FIFO after the last byte is read
+    from the Flash memory, regardless of the FTHRES setting. */
 
     uint32_t fmode = (s->reg_ccr & QSPI_CCR_FMODE_MASK) >> QSPI_CCR_FMODE_SHIFT;
     switch(fmode)
     {
         case QSPI_CCR_FMODE_INDRD:
         {
-            if (fifo8_is_full(&s->fifo) || fifo8_num_used(&s->fifo) > fthres)
+            if (fifo8_is_full(&s->fifo) /*|| fifo8_num_used(&s->fifo) > fthres*/)
             {
                 /* Set the FTF flag in SR. */
                 s->reg_sr |= QSPI_SR_FTF;
-                break;
+
+                return true;
             }
+            break;
         }
         case QSPI_CCR_FMODE_INDWR:
         {
             /* In indirect write mode, FTF is set when the number of empty
                 bytes in the FIFO is above the threshold. */
-            if (fifo8_is_empty(&s->fifo) || fifo8_num_free(&s->fifo) > fthres)
+            if (fifo8_is_empty(&s->fifo) /*|| fifo8_num_free(&s->fifo) > fthres*/)
             {
                 /* Set the FTF flag in SR. */
                 s->reg_sr |= QSPI_SR_FTF;
-                break;
+
+                return true;
             }
+            break;
         }
     }
 
-    /* TODO */
-    /* FTF is also set if there is data in the FIFO after the last byte is read
-    from the Flash memory, regardless of the FTHRES setting. */
+    return false;
 }
 
 /* This is used to mask values from ADSIZE / ABSIZE (CCR) value.
@@ -250,7 +260,9 @@ static void stm32f7_qspi_transfer_data(STM32F7QSPIState *s)
     {
         for (size_t i = s->reg_dlr + 1; i > 0; i--)
         {
-            stm32f7_qspi_update_fifo(s);
+            if (stm32f7_qspi_update_fifo(s))
+                break;
+
             uint32_t r = ssi_transfer(s->ssi, s->reg_dr);
             fifo8_push(&s->fifo, r);
             s->reg_dlr--;
@@ -261,12 +273,11 @@ static void stm32f7_qspi_transfer_data(STM32F7QSPIState *s)
     {
         for (size_t i = s->reg_dlr + 1; i > 0; i--)
         {
-            if (fifo8_is_empty(&s->fifo))
+            if (stm32f7_qspi_update_fifo(s))
                 break;
 
-            stm32f7_qspi_update_fifo(s);
             uint32_t value = fifo8_pop(&s->fifo);
-            /*uint32_t r = */ssi_transfer(s->ssi, value);
+            ssi_transfer(s->ssi, value);
             s->reg_dlr--;
         }
         break;
@@ -311,7 +322,8 @@ static void stm32f7_qspi_transfer(STM32F7QSPIState *s, enum STM32F7QSPICommand c
 
     /* Skip directly to the data phase if handling a DATA transfer and in the middle
        of processing a command */
-    if (command == STM32F7_QSPI_CMD_DATA && (s->reg_sr & QSPI_SR_BUSY))
+    if ((command == STM32F7_QSPI_CMD_DATA || command == STM32F7_QSPI_CMD_ADDRESS)
+         && (s->reg_sr & QSPI_SR_BUSY))
         goto data_phase;
 
     /* As soon as a command is started, the BUSY bit (bit 5 of QSPI_SR) is 
@@ -331,7 +343,7 @@ static void stm32f7_qspi_transfer(STM32F7QSPIState *s, enum STM32F7QSPICommand c
     if (imode != QSPI_CCR_IMODE_NONE)
     {
         uint32_t inst = (ccr & QSPI_CCR_INSTRUCTION_MASK) >> QSPI_CCR_INSTRUCTION_SHIFT;
-        /* uint32_t r = */ssi_transfer(s->ssi, inst);
+        ssi_transfer(s->ssi, inst);
     }
 
     /* Address phase
@@ -350,8 +362,28 @@ static void stm32f7_qspi_transfer(STM32F7QSPIState *s, enum STM32F7QSPICommand c
     if (admode != QSPI_CCR_ADMODE_NONE)
     {
         uint32_t adsize = (ccr & QSPI_CCR_ADSIZE_MASK) >> QSPI_CCR_ADSIZE_SHIFT;
-        uint32_t addr = (s->reg_ar & CCR_SIZE_MASK[adsize]);
-        /* uint32_t r = */ssi_transfer(s->ssi, addr);
+        uint32_t addr = s->reg_ar;
+        switch(adsize)
+        {
+        case QSPI_CCR_ADSIZE_32:
+            ssi_transfer(s->ssi, (addr & 0xff000000) >> 24);
+            ssi_transfer(s->ssi, (addr & 0xff0000) >> 16);
+            ssi_transfer(s->ssi, (addr & 0xff00) >> 8);
+            ssi_transfer(s->ssi, (addr & 0xff));
+            break;
+        case QSPI_CCR_ADSIZE_24:
+            ssi_transfer(s->ssi, (addr & 0xff0000) >> 16);
+            ssi_transfer(s->ssi, (addr & 0xff00) >> 8);
+            ssi_transfer(s->ssi, (addr & 0xff));
+            break;
+        case QSPI_CCR_ADSIZE_16:
+            ssi_transfer(s->ssi, (addr & 0xff00) >> 8);
+            ssi_transfer(s->ssi, (addr & 0xff));
+            break;
+        case QSPI_CCR_ADSIZE_8:
+            ssi_transfer(s->ssi, (addr & 0xff));
+            break;
+        }
     }
 
     /* Alternate-bytes phase
@@ -369,7 +401,7 @@ static void stm32f7_qspi_transfer(STM32F7QSPIState *s, enum STM32F7QSPICommand c
     {
         uint32_t absize = (ccr & QSPI_CCR_ABSIZE_MASK) >> QSPI_CCR_ABSIZE_SHIFT;
         uint32_t abytes = (s->reg_abr & CCR_SIZE_MASK[absize]);
-        /* uint32_t r =  */ssi_transfer(s->ssi, abytes);
+        ssi_transfer(s->ssi, abytes);
     }
 
     /* Data phase
@@ -483,12 +515,11 @@ static uint64_t stm32f7_qspi_read(void *opaque, hwaddr addr,
         return s->reg_dlr;
     case QSPI_DR:
     {
+        if (s->reg_sr & QSPI_SR_BUSY)
+            stm32f7_qspi_transfer_data(s);
+
         if (!fifo8_is_empty(&s->fifo))
             s->reg_dr = fifo8_pop(&s->fifo);
-
-        /* Clear the BUSY flag once the FIFO is empty. */
-        if (fifo8_is_empty(&s->fifo))
-            s->reg_sr &= ~QSPI_SR_BUSY;
 
         return s->reg_dr;
     }
@@ -497,7 +528,8 @@ static uint64_t stm32f7_qspi_read(void *opaque, hwaddr addr,
     case QSPI_SR:
     {
         uint32_t level = fifo8_num_used(&s->fifo);
-        assert(level < 32);
+        assert(level <= FIFO_CAPACITY);
+
         uint32_t sr = s->reg_sr | (level << QSPI_SR_FLEVEL_SHIFT);
         return sr;
     }
