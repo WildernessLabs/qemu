@@ -42,10 +42,7 @@ static void meadow_machine_init(MachineState *machine)
     DriveInfo *dinfo;
 
     dev = qdev_create(NULL, TYPE_STM32F7_SOC);
-    soc = STM32F7_SOC(dev);
-    mmc->soc = soc;
-
-    qdev_prop_set_string(dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m7"));
+    soc = mmc->soc = STM32F7_SOC(dev);
 
     /* Attach chardev 0 (console) to  USART1 */
     qdev_prop_set_chr(DEVICE(&(soc->usart[0])), "chardev", serial_hd(0));

@@ -53,6 +53,8 @@ static void stm32f7_soc_initfn(Object *obj)
     STM32F7State *s = STM32F7_SOC(obj);
     int i;
 
+    qdev_prop_set_string(DEVICE(s), "cpu-type", ARM_CPU_TYPE_NAME("cortex-m7"));
+
     sysbus_init_child_obj(obj, "armv7m", &s->armv7m, sizeof(s->armv7m),
                           TYPE_ARMV7M);
 
