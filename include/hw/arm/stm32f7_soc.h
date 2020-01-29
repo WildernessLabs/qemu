@@ -47,6 +47,8 @@
 #define FLASH_SIZE (2 * 1024 * 1024)
 #define SRAM_BASE_ADDRESS 0x20020000
 #define SRAM_SIZE (384 * 1024)
+#define SDRAM_BASE_ADDRESS 0xC0000000
+#define SDRAM_SIZE (32 * 1024 * 1024)
 
 typedef struct STM32F7State {
     /*< private >*/

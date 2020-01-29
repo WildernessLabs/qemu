@@ -96,6 +96,7 @@ static void stm32f7_soc_realize(DeviceState *dev_soc, Error **errp)
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     MemoryRegion *flash = g_new(MemoryRegion, 1);
     MemoryRegion *flash_alias = g_new(MemoryRegion, 1);
+    MemoryRegion *sdram = g_new(MemoryRegion, 1);
 
     memory_region_init_ram(flash, NULL, "STM32F7.flash", FLASH_SIZE,
                            &error_fatal);
@@ -111,6 +112,10 @@ static void stm32f7_soc_realize(DeviceState *dev_soc, Error **errp)
     memory_region_init_ram(sram, NULL, "STM32F7.sram", SRAM_SIZE,
                            &error_fatal);
     memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, sram);
+
+    memory_region_init_ram(sdram, NULL, "STM32F7.sdram", SDRAM_SIZE,
+                           &error_fatal);
+    memory_region_add_subregion(system_memory, SDRAM_BASE_ADDRESS, sdram);
 
     armv7m = DEVICE(&s->armv7m);
     qdev_prop_set_uint32(armv7m, "num-irq", 96);
