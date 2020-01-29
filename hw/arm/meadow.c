@@ -24,15 +24,16 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "hw/boards.h"
+#include "hw/arm/meadow.h"
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
-#include "hw/arm/stm32f7_soc.h"
 #include "hw/arm/boot.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/reset.h"
 
-static void meadow_init(MachineState *machine)
+static void meadow_machine_init(MachineState *machine)
 {
+    MeadowMachineClass *mmc = MEADOW_MACHINE_GET_CLASS(machine);
     DeviceState *dev;
     DeviceState *spi_flash;
     qemu_irq cs_line;
@@ -42,6 +43,7 @@ static void meadow_init(MachineState *machine)
 
     dev = qdev_create(NULL, TYPE_STM32F7_SOC);
     soc = STM32F7_SOC(dev);
+    mmc->soc = soc;
 
     qdev_prop_set_string(dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m7"));
 
@@ -71,11 +73,21 @@ static void meadow_init(MachineState *machine)
                        FLASH_SIZE);
 }
 
-static void meadow_machine_init(MachineClass *mc)
+static void meadow_machine_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Meadow Machine";
-    mc->init = meadow_init;
+    mc->init = meadow_machine_init;
     mc->ignore_memory_transaction_failures = true;
 }
 
-DEFINE_MACHINE("meadow", meadow_machine_init)
+static const TypeInfo meadow_machine_types[] = {
+    {
+        .name          = TYPE_MEADOW_MACHINE,
+        .parent        = TYPE_MACHINE,
+        .class_init    = meadow_machine_class_init,
+    }
+};
+
+DEFINE_TYPES(meadow_machine_types)
