@@ -32,6 +32,26 @@
 #include "sysemu/reset.h"
 
 #define SDRAM_SIZE (32 * 1024 * 1024)
+#define SDRAM_BASE_ADDRESS 0xC0000000
+
+struct QemuBootInfo {
+    uint32_t magic;
+} QEMU_PACKED;
+
+#define QEMU_BOOT_INFO_MAGIC 0x12341234
+#define QEMU_BOOT_INFO_OFFSET_FROM_SDRAM_END 1024
+#define QEMU_BOOT_INFO_ADDRESS \
+    (SDRAM_BASE_ADDRESS + SDRAM_SIZE - QEMU_BOOT_INFO_OFFSET_FROM_SDRAM_END)
+
+static void meadow_machine_reset(void *opaque)
+{
+    /* Setup in-memory information to signal to target that we're
+       booting via QEMU. */
+
+    struct QemuBootInfo boot_info = { .magic = QEMU_BOOT_INFO_MAGIC };
+    cpu_physical_memory_write(QEMU_BOOT_INFO_ADDRESS, &boot_info,
+      sizeof(struct QemuBootInfo));
+}
 
 static void meadow_machine_init(MachineState *machine)
 {
@@ -75,6 +95,7 @@ static void meadow_machine_init(MachineState *machine)
 
     armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
                        FLASH_SIZE);
+    qemu_register_reset(meadow_machine_reset, machine);
 }
 
 static void meadow_machine_class_init(ObjectClass *oc, void *data)
