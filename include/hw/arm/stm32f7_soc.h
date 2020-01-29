@@ -48,7 +48,6 @@
 #define SRAM_BASE_ADDRESS 0x20020000
 #define SRAM_SIZE (384 * 1024)
 #define SDRAM_BASE_ADDRESS 0xC0000000
-#define SDRAM_SIZE (32 * 1024 * 1024)
 
 typedef struct STM32F7State {
     /*< private >*/
@@ -59,13 +58,17 @@ typedef struct STM32F7State {
 
     ARMv7MState armv7m;
 
+    MemoryRegion *sram;
+    MemoryRegion *flash;
+    MemoryRegion *flash_alias;
+    MemoryRegion *sdram;
+
     STM32F2XXSyscfgState syscfg;
     STM32F7UsartState usart[STM_NUM_USARTS];
     STM32F2XXTimerState timer[STM_NUM_TIMERS];
     STM32F2XXADCState adc[STM_NUM_ADCS];
     STM32F2XXSPIState spi[STM_NUM_SPIS];
     STM32F7QSPIState qspi;
-
     qemu_or_irq *adc_irqs;
 } STM32F7State;
 

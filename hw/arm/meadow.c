@@ -31,6 +31,8 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/reset.h"
 
+#define SDRAM_SIZE (32 * 1024 * 1024)
+
 static void meadow_machine_init(MachineState *machine)
 {
     MeadowMachineClass *mmc = MEADOW_MACHINE_GET_CLASS(machine);
@@ -43,6 +45,11 @@ static void meadow_machine_init(MachineState *machine)
 
     dev = qdev_create(NULL, TYPE_STM32F7_SOC);
     soc = mmc->soc = STM32F7_SOC(dev);
+
+    MemoryRegion *sdram = g_new(MemoryRegion, 1);
+    memory_region_init_ram(sdram, NULL, "STM32F7.sdram", SDRAM_SIZE,
+                        &error_fatal);
+    soc->sdram = sdram;
 
     /* Attach chardev 0 (console) to  USART1 */
     qdev_prop_set_chr(DEVICE(&(soc->usart[0])), "chardev", serial_hd(0));

@@ -95,29 +95,28 @@ static void stm32f7_soc_realize(DeviceState *dev_soc, Error **errp)
     int i;
 
     MemoryRegion *system_memory = get_system_memory();
-    MemoryRegion *sram = g_new(MemoryRegion, 1);
-    MemoryRegion *flash = g_new(MemoryRegion, 1);
-    MemoryRegion *flash_alias = g_new(MemoryRegion, 1);
-    MemoryRegion *sdram = g_new(MemoryRegion, 1);
+    s->sram = g_new(MemoryRegion, 1);
+    s->flash = g_new(MemoryRegion, 1);
+    s->flash_alias = g_new(MemoryRegion, 1);
 
-    memory_region_init_ram(flash, NULL, "STM32F7.flash", FLASH_SIZE,
+    memory_region_init_ram(s->flash, NULL, "STM32F7.flash", FLASH_SIZE,
                            &error_fatal);
-    memory_region_init_alias(flash_alias, NULL, "STM32F7.flash.alias",
-                             flash, 0, FLASH_SIZE);
+    memory_region_init_alias(s->flash_alias, NULL, "STM32F7.flash.alias",
+                             s->flash, 0, FLASH_SIZE);
 
-    memory_region_set_readonly(flash, true);
-    memory_region_set_readonly(flash_alias, true);
+    memory_region_set_readonly(s->flash, true);
+    memory_region_set_readonly(s->flash_alias, true);
 
-    memory_region_add_subregion(system_memory, FLASH_BASE_ADDRESS, flash);
-    memory_region_add_subregion(system_memory, 0, flash_alias);
+    memory_region_add_subregion(system_memory, FLASH_BASE_ADDRESS, s->flash);
+    memory_region_add_subregion(system_memory, 0, s->flash_alias);
 
-    memory_region_init_ram(sram, NULL, "STM32F7.sram", SRAM_SIZE,
+    memory_region_init_ram(s->sram, NULL, "STM32F7.sram", SRAM_SIZE,
                            &error_fatal);
-    memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, sram);
+    memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, s->sram);
 
-    memory_region_init_ram(sdram, NULL, "STM32F7.sdram", SDRAM_SIZE,
-                           &error_fatal);
-    memory_region_add_subregion(system_memory, SDRAM_BASE_ADDRESS, sdram);
+    if (s->sdram) {
+        memory_region_add_subregion(system_memory, SDRAM_BASE_ADDRESS, s->sdram);
+    }
 
     armv7m = DEVICE(&s->armv7m);
     qdev_prop_set_uint32(armv7m, "num-irq", 96);
